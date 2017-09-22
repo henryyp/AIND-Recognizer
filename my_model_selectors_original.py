@@ -63,76 +63,46 @@ class SelectorConstant(ModelSelector):
 
 class SelectorBIC(ModelSelector):
     """ select the model with the lowest Bayesian Information Criterion(BIC) score
+
     http://www2.imm.dtu.dk/courses/02433/doc/ch6_slides.pdf
     Bayesian information criteria: BIC = -2 * logL + p * logN
     """
-    def select(self):
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        """
-        logL:   log of the maximized value of the likelihood function for the estimated model
-        logN:   log of the number of data points in x, the number of observations, or equivalently, the sample size
-        p:      the number of free parameters to be estimated. If the estimated model is a linear regression, p is the number of
-                regressors, including the intercept
-        """
-        lbicModel = (None, float("inf"))
-        for n in range(self.min_n_components, self.max_n_components + 1):
-            try:
-                model = self.base_model(n)
-                logL = model.score(self.X, self.lengths)
-                p = n * (n-1) + (n-1) + 2 * self.X.shape[1] * n
-                bic = (-2 * logL) + (p * np.log(self.X.shape[0]))
-                lbicModel = (model, bic) if bic < lbicModel[1] else lbicModel
-            except:
-                continue
 
-        return lbicModel[0]
+    def select(self):
+        """ select the best model for self.this_word based on
+        BIC score for n between self.min_n_components and self.max_n_components
+
+        :return: GaussianHMM object
+        """
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+        # TODO implement model selection based on BIC scores
+        raise NotImplementedError
 
 
 class SelectorDIC(ModelSelector):
     ''' select best model based on Discriminative Information Criterion
+
     Biem, Alain. "A model selection criterion for classification: Application to hmm topology optimization."
     Document Analysis and Recognition, 2003. Proceedings. Seventh International Conference on. IEEE, 2003.
     http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.58.6208&rep=rep1&type=pdf
     DIC = log(P(X(i)) - 1/(M-1)SUM(log(P(X(all but i))
-    FFS... formula above looked wrong or easy to misunderstand... it should be...
-    DIC = log(P(X(i)) - 1/(M-1) * SUM(log(P(X(all but i))
     '''
+
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        min_val = float("-inf")
-        ldicModel = (None, float("-inf"))
-        for n in range(self.min_n_components, self.max_n_components+1):
-            try:
-                model = self.base_model(n)
-                logL = model.score(self.X, self.lengths)
-                sumAllLogL = sum(model.score(self.hwords[word][0], self.hwords[word][1]) for word in self.words)
-                # print('ll', sumAllLogL)
-                dic = logL - sumAllLogL/(len(self.words)-1)
-                ldicModel = (model, dic) if dic > ldicModel[1] else ldicModel
-            except:
-                continue
 
-        return ldicModel[0]
+        # TODO implement model selection based on DIC scores
+        raise NotImplementedError
 
 
 class SelectorCV(ModelSelector):
     ''' select best model based on average log Likelihood of cross-validation folds
+
     '''
+
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        means = []
-        # fold split
-        split_method = KFold()
-        try:
-            for nComp in self.n_components:
-                model = self.base_model(nComp)
-                folds = []
-                for train, test in split_method.split(self.sequences):
-                    X, length = combine_sequences(test, self.sequences)
-                    folds.append(model.score(X, length))
-                means.append(np.mean(fold_scores))
-        except:
-            pass
 
-        states = self.n_components[np.argmax(means)] if means else self.n_constant
-        return self.base_model(states)
+        # TODO implement model selection using CV
+        raise NotImplementedError

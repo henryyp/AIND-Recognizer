@@ -63,76 +63,80 @@ class SelectorConstant(ModelSelector):
 
 class SelectorBIC(ModelSelector):
     """ select the model with the lowest Bayesian Information Criterion(BIC) score
+
     http://www2.imm.dtu.dk/courses/02433/doc/ch6_slides.pdf
     Bayesian information criteria: BIC = -2 * logL + p * logN
     """
+
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        lbicModel = (None, float("inf"))
         """
         logL:   log of the maximized value of the likelihood function for the estimated model
         logN:   log of the number of data points in x, the number of observations, or equivalently, the sample size
         p:      the number of free parameters to be estimated. If the estimated model is a linear regression, p is the number of
                 regressors, including the intercept
         """
-        lbicModel = (None, float("inf"))
-        for n in range(self.min_n_components, self.max_n_components + 1):
-            try:
+        try:
+            for n in range(self.min_n_components, self.max_n_components + 1):
                 model = self.base_model(n)
                 logL = model.score(self.X, self.lengths)
                 p = n * (n-1) + (n-1) + 2 * self.X.shape[1] * n
-                bic = (-2 * logL) + (p * np.log(self.X.shape[0]))
+                bic = (-2 * logL) + (p * np.log(self.X.shape[0])
                 lbicModel = (model, bic) if bic < lbicModel[1] else lbicModel
-            except:
-                continue
-
+        except:
+            pass
         return lbicModel[0]
 
 
 class SelectorDIC(ModelSelector):
-    ''' select best model based on Discriminative Information Criterion
-    Biem, Alain. "A model selection criterion for classification: Application to hmm topology optimization."
-    Document Analysis and Recognition, 2003. Proceedings. Seventh International Conference on. IEEE, 2003.
-    http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.58.6208&rep=rep1&type=pdf
-    DIC = log(P(X(i)) - 1/(M-1)SUM(log(P(X(all but i))
-    FFS... formula above looked wrong or easy to misunderstand... it should be...
-    DIC = log(P(X(i)) - 1/(M-1) * SUM(log(P(X(all but i))
-    '''
+
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        # TODO implement model selection based on DIC scores
         min_val = float("-inf")
-        ldicModel = (None, float("-inf"))
+        best_model = None
         for n in range(self.min_n_components, self.max_n_components+1):
             try:
                 model = self.base_model(n)
                 logL = model.score(self.X, self.lengths)
-                sumAllLogL = sum(model.score(self.hwords[word][0], self.hwords[word][1]) for word in self.words)
-                # print('ll', sumAllLogL)
-                dic = logL - sumAllLogL/(len(self.words)-1)
-                ldicModel = (model, dic) if dic > ldicModel[1] else ldicModel
+                total_other_logL = 0
+                for word in self.words:
+                    other_x, other_lengths = self.hwords[word]
+                    total_other_logL += model.score(other_x, other_lengths)
+                avg_logL = total_other_logL/(len(self.words)-1)
+                dic_score = logL - avg_logL
+                if dic_score > min_val:
+                    min_val = dic_score
+                    best_model = model
             except:
                 continue
-
-        return ldicModel[0]
+        return best_model
 
 
 class SelectorCV(ModelSelector):
-    ''' select best model based on average log Likelihood of cross-validation folds
-    '''
+    ''' select best model based on average log Likelihood of cross-validation folds'''
+
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        means = []
-        # fold split
+        mean_scores = []
+        # Save reference to 'KFold' in variable as shown in notebook
         split_method = KFold()
         try:
-            for nComp in self.n_components:
-                model = self.base_model(nComp)
-                folds = []
-                for train, test in split_method.split(self.sequences):
-                    X, length = combine_sequences(test, self.sequences)
-                    folds.append(model.score(X, length))
-                means.append(np.mean(fold_scores))
-        except:
+            for n_component in self.n_components:
+                model = self.base_model(n_component)
+                # Fold and calculate model mean scores
+                fold_scores = []
+                for _, test_idx in split_method.split(self.sequences):
+                    # Get test sequences
+                    test_X, test_length = combine_sequences(test_idx, self.sequences)
+                    # Record each model score
+                    fold_scores.append(model.score(test_X, test_length))
+
+                # Compute mean of all fold scores
+                mean_scores.append(np.mean(fold_scores))
+        except Exception as e:
             pass
 
-        states = self.n_components[np.argmax(means)] if means else self.n_constant
+        states = self.n_components[np.argmax(mean_scores)] if mean_scores else self.n_constant
         return self.base_model(states)

@@ -1,0 +1,10 @@
+import unittest
+from unittest import TestCase
+from asl_test_model_selectors import TestSelectors
+suite = unittest.TestLoader().loadTestsFromModule(TestSelectors())
+unittest.TextTestRunner().run(suite)
+
+import unittest
+from asl_test_recognizer import TestRecognize
+suite = unittest.TestLoader().loadTestsFromModule(TestRecognize())
+unittest.TextTestRunner().run(suite)
